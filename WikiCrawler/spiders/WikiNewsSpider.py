@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re
+from bs4 import BeautifulSoup
 
 
 class WikiNewsSpider(scrapy.Spider):
@@ -9,23 +10,37 @@ class WikiNewsSpider(scrapy.Spider):
     start_urls = ['https://ja.wikipedia.org/wiki/Portal:最近の出来事']
 
     def parse(self, response):
-        date_headlines_table = response.xpath("//div[@class='mw-parser-output']")
-        for date_headline in date_headlines_table.xpath("//h3"):
-            date_datail = date_headline.xpath("//span[@class='mw-headline']")
-            newses = date_headline.next_sibling.string.next_sibling
 
-            # <ui>タグ内の<li>タグを探す
-            for news in newses.xpath("//li"):
-                # カテゴリがない場合のエラー処理を実装
-                try:
-                    category = news.xpath("//i").extract()
-                except AttributeError:
-                    category = "-"
+            html = response.text
+            soup = BeautifulSoup( html , 'html.parser' )
 
-                re_news = re.sub('（[^）]*）', '', news.text)
+            # ページ内のテーブルを取ってくる
+            date_headlines_table = soup.find( 'div' , class_="mw-parser-output" )
 
-                yield {
-                        "date": date_datail,
-                        "category": category,
+            # 見出しの日付を取得する
+            date_headlines = date_headlines_table.find_all( 'h3' )
+
+            for date_headline in date_headlines:
+
+                date_detail = date_headline.find( 'span' , class_="mw-headline" )
+                # 日付見出しの次は必ず<ui>タグが設定されている
+                newses = date_headline.next_sibling.string.next_sibling
+
+                # <ui>タグ内の<li>タグを探す
+                for i , news in enumerate( newses.find_all( 'li' ) ):
+                    # カテゴリがない場合のエラー処理を実装
+                    try:
+                        category = news.find( "i" ).text
+                    except AttributeError:
+                        category = "-"
+
+                    re_news = re.sub( '（[^）]*）' , '' , news.text )
+
+                    yield{
+                        "date": date_detail.text ,
+                        "category": category ,
                         "news": re_news
-                        }
+                    }
+
+                    # id = re.sub( '[年月日]' , '-' , date_detail.text ) + str( i )
+
