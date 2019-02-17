@@ -48,3 +48,30 @@ class WikiNewsSpider(scrapy.Spider):
 
                     # id = re.sub( '[年月日]' , '-' , date_detail.text ) + str( i )
 
+                    base_url = "https://ja.wikipedia.org"
+
+                    # ページ内のテーブルを取ってくる
+                    date_headlines_table = soup.find( 'table' )
+
+                    # テーブルの中のテーブルを取ってくる
+                    summary_table = date_headlines_table.find_all( 'table' )
+
+                    for year_list in summary_table:
+                        year_summaries = year_list.find_all( 'ul' )
+
+                    for year_summary in year_summaries:
+
+                        # <ul>タグの次の<dl>タグを取ってくる
+                        month_summary = year_summary.next_sibling.string.next_sibling
+
+                        for month_link_tag in month_summary.find_all( "a" ):
+                            next_page = base_url + month_link_tag.get( 'href' )
+
+                            if next_page is not None:
+                                yield response.follow(next_page, self.parse)
+
+
+
+
+
+
