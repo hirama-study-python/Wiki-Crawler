@@ -9,6 +9,10 @@ class WikiNewsSpider(scrapy.Spider):
     allowed_domains = ['ja.wikipedia.org']
     start_urls = ['https://ja.wikipedia.org/wiki/Portal:最近の出来事']
 
+    custom_settings = {
+        "DOWNLOAD_DELAY": 1.5,
+    }
+
     def parse(self, response):
 
             html = response.text
