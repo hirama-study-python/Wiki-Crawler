@@ -13,62 +13,77 @@ class WikiNewsSpider(scrapy.Spider):
         "DOWNLOAD_DELAY": 1.5,
     }
 
+    # 一覧ページのパース用コールバック関数
+    # Following Linksのクローリングも合わせて行なっている
     def parse(self, response):
 
-            html = response.text
-            soup = BeautifulSoup( html , 'html.parser' )
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
 
-            # ページ内のテーブルを取ってくる
-            date_headlines_table = soup.find( 'div' , class_="mw-parser-output" )
+        data = self.extract_data(soup)
+        for d in data:
+            yield d
 
-            # 見出しの日付を取得する
-            date_headlines = date_headlines_table.find_all( 'h3' )
+        # ページ内のテーブルを取ってくる
+        year_summaries = soup.find('table').find_all('table')[-1].find_all('ul')
 
-            for date_headline in date_headlines:
+        for year_summary in year_summaries:
 
-                date_detail = date_headline.find( 'span' , class_="mw-headline" )
-                # 日付見出しの次は必ず<ui>タグが設定されている
-                newses = date_headline.next_sibling.string.next_sibling
+            # <ul>タグの次の<dl>タグを取ってくる
+            month_summary = year_summary.next_sibling.string.next_sibling
 
-                # <ui>タグ内の<li>タグを探す
-                for i , news in enumerate( newses.find_all( 'li' ) ):
-                    # カテゴリがない場合のエラー処理を実装
-                    try:
-                        category = news.find( "i" ).text
-                    except AttributeError:
-                        category = "-"
+            for month_link_tag in month_summary.find_all("a"):
+                next_page =  month_link_tag.get('href')
 
-                    re_news = re.sub( '（[^）]*）' , '' , news.text )
+                if next_page is not None:
+                    yield response.follow(next_page, self.parse_detail)
 
-                    yield{
-                        "date": date_detail.text ,
-                        "category": category ,
-                        "news": re_news
-                    }
+                break
+            break
 
-                    # id = re.sub( '[年月日]' , '-' , date_detail.text ) + str( i )
+    # 詳細ページのパース用コールバック関数
+    def parse_detail(self, response):
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
 
-                    base_url = "https://ja.wikipedia.org"
+        data = self.extract_data(soup)
+        for d in data:
+            yield d
 
-                    # ページ内のテーブルを取ってくる
-                    date_headlines_table = soup.find( 'table' )
+    # Beautifulsoupインスタンスからデータ要素を抽出する関数
+    # 抽出した結果はList形式で返却する
+    def extract_data(self, soup):
 
-                    # テーブルの中のテーブルを取ってくる
-                    summary_table = date_headlines_table.find_all( 'table' )
+        data = []
 
-                    for year_list in summary_table:
-                        year_summaries = year_list.find_all( 'ul' )
+        date_headlines_table = soup.find('div', class_="mw-parser-output")
 
-                    for year_summary in year_summaries:
+        # 見出しの日付を取得する
+        date_headlines = date_headlines_table.find_all('h3')
 
-                        # <ul>タグの次の<dl>タグを取ってくる
-                        month_summary = year_summary.next_sibling.string.next_sibling
+        for date_headline in date_headlines:
 
-                        for month_link_tag in month_summary.find_all( "a" ):
-                            next_page = base_url + month_link_tag.get( 'href' )
+            date_detail = date_headline.find('span', class_="mw-headline")
+            # 日付見出しの次は必ず<ui>タグが設定されている
+            newses = date_headline.next_sibling.string.next_sibling
 
-                            if next_page is not None:
-                                yield response.follow(next_page, self.parse)
+            # <ui>タグ内の<li>タグを探す
+            for i, news in enumerate(newses.find_all('li')):
+                # カテゴリがない場合のエラー処理を実装
+                try:
+                    category = news.find("i").text
+                except AttributeError:
+                    category = "-"
+
+                re_news = re.sub('（[^）]*）', '', news.text)
+
+                data.append({
+                    "date": date_detail.text,
+                    "category": category,
+                    "news": re_news
+                })
+
+        return data
 
 
 
