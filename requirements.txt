@@ -1,3 +1,4 @@
 scrapy==1.6.0
 beautifulsoup4==4.7.0
+elasticsearch==6.3.1
 bs4==0.0.1
