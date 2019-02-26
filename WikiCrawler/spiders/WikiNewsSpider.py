@@ -78,9 +78,10 @@ class WikiNewsSpider(scrapy.Spider):
                 re_news = re.sub('（[^）]*）', '', news.text)
 
                 news_id = re.sub('[年月日]', '-', date_headline.text) + str(i)
+                esc_news_id = re.sub('\[編集\]', '', news_id)
 
                 data.append({
-                    "id": news_id,
+                    "id": esc_news_id,
                     "date": date_detail.text,
                     "category": category,
                     "news": re_news
